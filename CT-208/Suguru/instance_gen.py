@@ -59,9 +59,10 @@ class Matrix:
                     break
                 else:
                     p = pn
-                    
+                
 
-        print(self.regions)
+    def get_regions(self):
+        return self.regions
 
     def valid_pos(self, x, y):
         return (x >= 0 and x < self.size) and (y >= 0 and y < self.size)
@@ -78,4 +79,5 @@ class Matrix:
                 return None
             return self.matrix[x][y]
 
-Matrix(8)
+m = Matrix(16)
+print(m.get_regions())
