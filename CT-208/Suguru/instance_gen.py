@@ -1,13 +1,6 @@
 import random
+import argparse
 import numpy as np
-
-
-class Node:
-    def __init__(self, value, region, pos):
-        self.value = value
-        self.region = region
-        self.i, self.j = pos
-
 
 class Matrix:
     def __init__(self, size):
@@ -17,9 +10,7 @@ class Matrix:
         self.node_cnt = self.size**2
 
         # Init matrix
-        self.nodes = [Node(None, None, (i,j)) for i in range(size) for j in range(size)]
-        self.matrix = np.array(self.nodes, dtype=object)
-        self.matrix = self.matrix.reshape(size, size)
+        self.matrix = np.zeros((size,size))
 
         # Regions matrix
         self.regions = np.zeros((size,size))
@@ -63,6 +54,9 @@ class Matrix:
 
     def get_regions(self):
         return self.regions
+    
+    def get_matrix(self):
+        return self.matrix
 
     def valid_pos(self, x, y):
         return (x >= 0 and x < self.size) and (y >= 0 and y < self.size)
@@ -79,5 +73,31 @@ class Matrix:
                 return None
             return self.matrix[x][y]
 
-m = Matrix(16)
-print(m.get_regions())
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--size', help='The size of the side of the generated matrix')
+    parser.add_argument('--cnt', help='Number of matrices to generate')
+    parser.add_argument('--prefix', help='Prefix of the filenames generated for the matrices')     
+    args = parser.parse_args()
+
+    size = int(args.size)
+    cnt = int(args.cnt)
+    prefix = args.prefix
+    
+    for i in range(cnt):
+        m = Matrix(size)
+        regions = m.get_regions()
+        matrix = m.get_matrix()
+        
+        conc = np.vstack([matrix, regions])
+        conc.astype('int16').tofile(f'{prefix}_{i}.data')
+            
+
+
+if __name__ == '__main__':
+    main()
+
+
+
