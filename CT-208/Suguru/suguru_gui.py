@@ -1,15 +1,16 @@
 import tkinter as tk
-import threading
+import argparse
+import os
 import numpy as np
 
-
 class SuguruGUI:
-    def __init__(self, root, suguru, cell_size=60):
+    def __init__(self, root, rows, cols, grid, regions, cell_size=60):
         self.root = root
-        self.suguru = suguru
-        self.rows = suguru.m
-        self.cols = suguru.n
+        self.rows = rows
+        self.cols = cols
         self.cell_size = cell_size
+        self.grid = grid
+        self.regions = regions
 
         self.canvas = tk.Canvas(
             root,
@@ -35,7 +36,7 @@ class SuguruGUI:
                 )
 
                 # Draw initial number
-                val = self.suguru.grid[i, j]
+                val = self.grid[i,j]
                 text = self.canvas.create_text(
                     (x1 + x2) // 2, (y1 + y2) // 2,
                     text=str(val) if val else "",
@@ -47,7 +48,7 @@ class SuguruGUI:
         self._draw_region_borders()
 
     def _draw_region_borders(self):
-        regions = self.suguru.regions
+        regions = self.regions
         for i in range(self.rows):
             for j in range(self.cols):
                 rid = regions[i, j]
@@ -72,7 +73,34 @@ class SuguruGUI:
         self.root.update_idletasks()
 
 
-def display_suguru(SuguruInstance):
+def display_suguru(rows, cols, grid, regions):
     root = tk.Tk()
-    gui = SuguruGUI(root, SuguruInstance, cell_size=80)
+    gui = SuguruGUI(root, rows, cols, grid, regions, cell_size=80)
     root.mainloop()
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--path', help='Path to Suguru file')
+
+    args = parser.parse_args()
+
+    path = args.path
+
+    if not os.path.isfile(path):
+        print('[-] Invalid file')
+        return
+
+    with open(path, 'rb') as fp:
+        rows = int.from_bytes(fp.read(2))
+        cols = int.from_bytes(fp.read(2))
+
+        arr = np.fromfile(fp, dtype=np.int16).reshape(2, rows, cols)
+        grid, regions = arr
+    
+    display_suguru(rows, cols,grid,regions)
+        
+        
+
+if __name__ == '__main__':
+    main()

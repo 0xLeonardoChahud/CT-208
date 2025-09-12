@@ -1,18 +1,21 @@
 import time
 import argparse
 import numpy as np
+import suguru_gui
+import threading
+import os
 import typing
+import tkinter as tk
 
 class Cell:
-    def __init__(self, row, col, side):
+    def __init__(self, row, col, x, y):
         self.numbers = set()
-        self.numbers_copy = set()
         self.value = 0
         self.region = 0
-        self.region_size = 0
         self.row = row
         self.col = col
-        self.side = side
+        self.x = x
+        self.y = y
 
     def __repr__(self):
         return str(self.value)
@@ -25,7 +28,7 @@ class Cell:
         ret = list()
         for x, y in aux:
             nx,ny = x + self.row, y + self.col
-            if 0 <= nx < self.side and 0 <= ny < self.side:
+            if 0 <= nx < self.x and 0 <= ny < self.y:
                 ret.append((nx,ny))
         return ret
 
@@ -34,15 +37,20 @@ class Cell:
         ret = list()
         for x, y in aux:
             nx,ny = x + self.row, y + self.col
-            if 0 <= nx < self.side and 0 <= ny < self.side:
+            if 0 <= nx < self.x and 0 <= ny < self.y:
                 ret.append((nx,ny))
         
         return ret
 
 class DeterministicEngine:
-    def __init__(self, grid, regions):
-        self.grid = grid
+    def __init__(self, rows, cols, grid, regions):
+        self.raw_grid = grid
         self.regions = regions
+        self.rows = rows
+        self.cols = cols
+        self.grid = np.array([Cell(i,j,self.rows,self.cols) for i in range(self.rows) for j in range(self.cols)])
+        self.grid = self.grid.reshape((self.rows, self.cols))
+        self._setup_cells()
 
         self._Regions: dict[int, list] = dict()
         for c in self.grid.flatten():
@@ -73,6 +81,31 @@ class DeterministicEngine:
             return True
         return False
 
+    def _setup_cells(self):
+        region_sizes = dict()
+        for i in range(self.rows):
+            for j in range(self.cols):
+                r = self.regions[i,j]
+                self.grid[i,j].region = r
+                self.grid[i,j].value = self.raw_grid[i,j]
+                if r not in region_sizes:
+                    region_sizes[r] = 0
+                region_sizes[r] += 1
+        
+        for i in range(self.rows):
+            for j in range(self.cols):
+                if self.raw_grid[i,j] != 0:
+                    continue
+                r = self.regions[i,j]
+                length = region_sizes[r]
+                self.grid[i,j].numbers = set(range(1,length+1))
+        
+        
+        
+        
+
+
+
     def corrupted(self):
         for cells in self._Regions.values():
             for c1 in cells:
@@ -94,9 +127,6 @@ class DeterministicEngine:
                 if c1.value in neighbour_values or 0 in neighbour_values:
                     return False
         return True
-
-    def _update_grid(self):
-        pass
 
     def _SizeOneRule(self):
         ret = False
@@ -279,166 +309,70 @@ class DeterministicEngine:
                                 n.numbers = up
         return ret
 
-
-class SuguruGenerator:
-    def __init__(self, m, n):
-        self.m = m
-        self.n = n
-
-        self.grid = np.zeros((self.m, self.n), dtype=int)
-        self.regions = np.zeros((self.m, self.n), dtype=int)
-
-        self.region_map = dict()
-
-
-    def generate(self):
-        self._reset()
-
-        region = 1
-        pos = [(i,j) for i in range(self.m) for j in range(self.n)]
-        while pos:
-            init_pos = pos.pop()
-            region_size = np.random.randint(2, 6)
-            cnt = 0
-            value = 1
-
-            path = set()
-            path.add(init_pos)
-            
-            while cnt < region_size and path:
-                    
-                p = path.pop()
-                i,j = p
-
-                n8v = [self.grid[i][j] for i,j in self._n8(i,j)]
-
-                if value in n8v:
-                    continue
-                    
-                # Setup tile
-                self.grid[i][j] = value
-                self.regions[i][j] = region
-                
-                if p in pos:
-                    pos.remove(p)
-
-                neighbours = [n for n in self._n4(i,j) if self.grid[n[0]][n[1]] == 0]
-                path = path.union(neighbours)
-                value += 1
-                cnt += 1
-
-                if region not in self.region_map:
-                    self.region_map[region] = list()
-                self.region_map[region].append(p)
-                
-            region += 1
-
+class Suguru:
+    def __init__(self, file_path, tips=0):
+        if not os.path.isfile(file_path):
+            raise Exception('Error: invalid file path')
         
-        # Region expansion
-        while np.any(self.regions == 0):
-            pos = [(i,j) for i in range(self.m) for j in range(self.n)]
-            zeros = np.count_nonzero(self.regions == 0)
-            zeros_after = zeros
-            while pos:
-                p = pos.pop()
-                k,l = p
+        # Load from file
+        self.file_path = file_path
+        with open(self.file_path, 'rb') as fp:
+            rows = int.from_bytes(fp.read(2))
+            cols = int.from_bytes(fp.read(2))
+            arr = np.fromfile(fp, dtype=np.int16).reshape(2, rows, cols)
 
-                if self.regions[k][l] != 0:
-                    continue
-                
-                n8tv = [self.grid[i][j] for i,j in self._n8(k,l)]
-                n8tv = [n8t for n8t in n8tv if n8t != 0]
+        # Organize
+        self.solved, self.regions = arr
+        self.rows = rows
+        self.cols = cols
+        self.grid = np.zeros((self.rows, self.cols), dtype=int)
+        self.size = self.rows*self.cols
 
-                n4r = [self.regions[i][j] for i,j in self._n4(k,l)]
-                n4r = [r for r in n4r if r != 0]
-                n4r = sorted(n4r, key=lambda r : len(self.region_map[r]))
+        # Random number of tips
+        pos = [(i,j) for i in range(self.rows) for j in range(self.cols)]
+        if tips == 0:
+            tips = np.random.randint(np.floor(np.sqrt(self.size)), np.ceil(2*np.sqrt(self.size)))
+            np.random.shuffle(pos)
+            for p in range(tips):
+                i,j = pos[p]
+                self.grid[i,j] = self.solved[i,j]
+        else:
+            tips = int(np.floor(tips*self.size))
+            np.random.shuffle(pos)
+            for p in range(tips):
+                i,j = pos[p]
+                self.grid[i,j] = self.solved[i,j]
 
-                for r in n4r:
-                    length = len(self.region_map[r])
-                    value = length+1
-                    if value not in n8tv:
-                        self.regions[k][l] = r
-                        self.grid[k][l] = value
-                        self.region_map[r].append(p)
-                        zeros_after -= 1
-                        break     
-            if zeros == zeros_after:
-                break
-        
-        return self._solved()
+        # Graphical control
+        self.root_window = tk.Tk()
+        self.gui = suguru_gui.SuguruGUI(self.root_window, self.rows, self.cols, self.grid, self.regions, cell_size=80)
 
-    def _reset(self):
-        self.grid = np.zeros((self.m, self.n), dtype=int)
-        self.regions = np.zeros((self.m, self.n), dtype=int)
-        self.region_map = dict()
+        # Deterministic Engine
+        self.de = DeterministicEngine(self.rows, self.cols, self.grid, self.regions)
 
-    def _n8(self, i, j):
-        moves = [(1,1),(1,0),(0,1),(-1,-1),(-1,0),(0,-1),(-1,1),(1,-1)]
-        n8p = list()
-        for move in moves:
-            mx, my = i+move[0], j+move[1]
-            if 0 <= mx < self.m and 0 <= my < self.n:
-                n8p.append((mx,my))
-        return n8p
-             
-    def _n4(self, i, j):
-        moves = [(1,0),(0,1),(-1,0),(0,-1)]
-        n4p = list()
-        for move in moves:
-            mx, my = i+move[0], j+move[1]
-            if 0 <= mx < self.m and 0 <= my < self.n:
-                n4p.append((mx,my))
-        return n4p
-    
-    def _solved(self):
-        if np.any(self.regions == 0) or np.any(self.grid == 0):
-            return False
-    
-        # Group permutation check
-        for _, pos in self.region_map.items():
-            length = len(pos)
-            values = set(range(1, length+1))
-            tile_values = set([self.grid[i][j] for i,j in pos])
-            if tile_values != values:
-                return False
+    def show(self):
+        thread = threading.Thread(target=self._update_grid_periodically, args=(self.gui, self), daemon=True)
+        thread.start()
+        self.root_window.mainloop()
 
-        # 8 Neighbours check
-        for _, pos in self.region_map.items():
-            for p in pos:
-                k,l = p
-                neighbour_values = [self.grid[i][j] for i,j in self._n8(k,l)]
-                if self.grid[k][l] in neighbour_values:
-                    return False
+    @staticmethod
+    def _update_grid_periodically(gui, suguru):
+        while True:
 
-        return True
-            
+            # Solver
+            if suguru.de._apply_rules():
+                suguru.grid = suguru.de.grid
+            else:
+                print('nothing done')
+
+            # Schedule the GUI update on the main thread
+            gui.root.after(0, gui.set_grid, suguru.grid)
+            time.sleep(0.2)  # update every second
+
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--rows', help='Number of rows')
-    parser.add_argument('--cols', help='Number of columns')
-    parser.add_argument('--count', help='Number of matrices to generate')
-    args = parser.parse_args()
+    s = Suguru('./samples/10x10_1.data', 0.5)
+    s.show()
 
-    rows = int(args.rows)
-    cols = int(args.cols)
-    cnt = int(args.count)
-
-    created = 0
-    start_time = time.perf_counter()
-    m = SuguruGenerator(rows, cols)
-    while created < cnt:
-        if m.generate():
-            created += 1
-            conc = np.vstack([m.grid, m.regions])
-            with open(f'./samples/{rows}x{cols}_{created}.data', 'wb') as fp:
-                fp.write(rows.to_bytes(2))
-                fp.write(cols.to_bytes(2))
-                conc.astype('int16').tofile(fp)
-    end_time = time.perf_counter()
-    print(f'Elapsed time: {end_time - start_time} seconds')  
 
 if __name__ == '__main__':
     main()
-
-
-
