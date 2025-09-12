@@ -7,8 +7,8 @@ class SuguruGUI:
     def __init__(self, root, suguru, cell_size=60):
         self.root = root
         self.suguru = suguru
-        self.rows = suguru.side
-        self.cols = suguru.side
+        self.rows = suguru.m
+        self.cols = suguru.n
         self.cell_size = cell_size
 
         self.canvas = tk.Canvas(
@@ -35,7 +35,7 @@ class SuguruGUI:
                 )
 
                 # Draw initial number
-                val = self.suguru.grid[i, j].value if hasattr(self.suguru.grid[i, j], "value") else 0
+                val = self.suguru.grid[i, j]
                 text = self.canvas.create_text(
                     (x1 + x2) // 2, (y1 + y2) // 2,
                     text=str(val) if val else "",
@@ -75,5 +75,4 @@ class SuguruGUI:
 def display_suguru(SuguruInstance):
     root = tk.Tk()
     gui = SuguruGUI(root, SuguruInstance, cell_size=80)
-    
     root.mainloop()
