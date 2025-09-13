@@ -2,7 +2,6 @@ import tkinter as tk
 import argparse
 import os
 import numpy as np
-import time
 
 class SuguruGUI:
     def __init__(self, root, rows, cols, grid, regions, cell_size=60):

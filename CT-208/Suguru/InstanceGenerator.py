@@ -193,7 +193,7 @@ class SuguruGenerator:
         if np.any(self.regions == 0) or np.any(self.grid == 0):
             return False
     
-        # Group permutation check
+        # Group permutation check and valid numbers
         for _, pos in self.region_map.items():
             length = len(pos)
             values = set(range(1, length+1))

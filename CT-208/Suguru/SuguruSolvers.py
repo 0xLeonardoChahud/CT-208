@@ -72,6 +72,7 @@ class DeterministicEngine:
         return True
 
     def _apply_rules(self):
+        print('rule')
         if self._BaseCaseRule():
             return True
         if self._ExclusionRule():
