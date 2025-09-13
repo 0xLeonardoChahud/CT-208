@@ -2,6 +2,7 @@ import time
 import argparse
 import numpy as np
 import os
+import itertools
 
 
 class SuguruGenerator:
@@ -67,14 +68,37 @@ class SuguruGenerator:
         if not solved:
             return False
 
+        # Randomize to not have sequences
+        self._randomize_tiles()
+
         # Save solved
         self.solved = self.grid.copy()
-
+        
         # Uniqueness
         if unique:
             self._make_it_unique()
 
         return solved
+
+    def _randomize_tiles(self):
+        for r, polynomio in self.region_map.items():
+            for t1,t2 in itertools.combinations(list(polynomio), 2):
+                    if self._tile_dist(t1, t2) < 2:
+                        continue
+
+                    v1 = self.grid[t1]
+                    v2 = self.grid[t2]
+
+                    t1n8 = self._n8(t1[0], t1[1])
+                    t2n8 = self._n8(t2[0], t2[1])
+
+                    t1vs = [self.grid[p] for p in t1n8]
+                    t2vs = [self.grid[p] for p in t2n8]
+
+                    if v1 in t2vs or v2 in t1vs:
+                        continue
+                    else:
+                        self._swap_tiles(t1, t2)
 
     def _make_it_unique(self):
         for x in range(self.m):
