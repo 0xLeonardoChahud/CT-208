@@ -337,11 +337,4 @@ class BacktrackSolver(BaseSolver):
         
         self.tile_grid[i,j].value = 0
         return False
-                    
-
-    def _set_polynomio_permutation(self, polynomio, permutation):
-        for i in range(len(polynomio)):
-            polynomio[i].value = permutation[i]
-
-
 
