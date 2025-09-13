@@ -2,6 +2,7 @@ import tkinter as tk
 import argparse
 import os
 import numpy as np
+import time
 
 class SuguruGUI:
     def __init__(self, root, rows, cols, grid, regions, cell_size=60):
@@ -36,7 +37,7 @@ class SuguruGUI:
                 )
 
                 # Draw initial number
-                val = self.grid[i,j]
+                val = self.grid[i, j]
                 text = self.canvas.create_text(
                     (x1 + x2) // 2, (y1 + y2) // 2,
                     text=str(val) if val else "",
@@ -68,10 +69,17 @@ class SuguruGUI:
         """Update all cells at once from a 2D numpy array or suguru.grid."""
         for i in range(self.rows):
             for j in range(self.cols):
-                val = grid[i, j].value if hasattr(grid[i, j], "value") else grid[i, j]
+                self.grid = grid
+                val = self.grid[i, j]
                 self.canvas.itemconfig(self.cells[(i, j)], text=str(val) if val else "")
         self.root.update_idletasks()
 
+    def set_solved(self):
+        for k in range(self.rows):
+            for l in range(self.cols):
+                v = self.grid[k,l]
+                self.canvas.itemconfig(self.cells[(k, l)], text=str(v) if v else "", fill='green')
+        self.root.update_idletasks()        
 
 def display_suguru(rows, cols, grid, regions):
     root = tk.Tk()
@@ -95,10 +103,10 @@ def main():
         rows = int.from_bytes(fp.read(2))
         cols = int.from_bytes(fp.read(2))
 
-        arr = np.fromfile(fp, dtype=np.int16).reshape(2, rows, cols)
-        grid, regions = arr
+        arr = np.fromfile(fp, dtype=np.int16).reshape(3, rows, cols)
+        grid, solved, regions = arr
     
-    display_suguru(rows, cols,grid,regions)
+    display_suguru(rows, cols, grid, regions)
         
         
 
