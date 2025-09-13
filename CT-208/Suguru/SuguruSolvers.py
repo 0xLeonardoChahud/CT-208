@@ -303,7 +303,6 @@ class DeterministicEngine(BaseSolver):
         return ret
 
 
-
 '''
 Backtrack solver
 '''
