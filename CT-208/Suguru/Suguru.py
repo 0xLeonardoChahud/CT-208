@@ -9,49 +9,40 @@ import json
 
 
 class Suguru:
-    def __init__(self, grid, solved, regions):
+    def __init__(self, grid, regions, solver: SuguruSolvers.BaseSolver, delay=0):
         # Organize
-        self.grid, self.solved, self.regions = grid, solved, regions
+        self.grid, self.regions = grid, regions
         self.rows, self.cols = self.grid.shape
         self.size = self.rows*self.cols
 
+        self.solver = solver(self.grid, self.regions, delay)
+
         # Graphical control
-        self.root_window = tk.Tk()
-        self.gui = SuguruGui.SuguruGUI(self.root_window,
+        self.root = tk.Tk()
+        self.gui = SuguruGui.SuguruGUI(self.root,
                                        self.rows, self.cols,
                                        self.grid, self.regions,
                                        cell_size=80
                                        )
 
-        # Deterministic engine
-        # self.de = DeterministicEngine(self.grid, self.regions)
 
-    def show(self, solve=False):
-        if solve:
-            thread = threading.Thread(target=self._update_grid_periodically,
-                                      args=(self.gui, self),
-                                      daemon=True
-                                      )
-            thread.start()
-        self.gui.root.mainloop()
+    def show(self):
+        self.root.mainloop()
 
-    @staticmethod
-    def _update_grid_periodically(gui, suguru):
-        while True:
-            de = SuguruSolvers.BacktrackSolver(suguru.grid, suguru.regions)
-            de.solve()
-            suguru.grid = de.grid
+    def solve(self):
+        t = threading.Thread(target=self.solver.solve, daemon=True)
+        t.start()
 
-            # Schedule the GUI update on the main thread
-            gui.root.after(0, gui.set_grid, suguru.grid)
-            time.sleep(0.1)
+        self._poll_updates(10)
 
-            if de._solved():
-                gui.set_solved()
-                time.sleep(2)
-                # gui.root.after(0, gui.root.quit)
-                break
+    def _poll_updates(self, delay):
+        self.solver._update_main_grid()
+        self.grid = self.solver.grid
+        self.gui.set_grid(self.grid)
 
+        if SuguruSolvers.Checker.solved(self.grid, self.regions):
+            self.gui.set_solved()
+        self.root.after(delay, lambda: self._poll_updates(delay))
 
 def parse_suguru_line_to_grid_and_regions(line):
     data = json.loads(line)
@@ -89,9 +80,7 @@ def parse_suguru_binary(path):
         arr = np.fromfile(fp, dtype=np.int16).reshape(3, rows, cols)
     return arr
 
-
-def main():
-
+def parse_json_file(path):
     path = 'puzzles.json'
     puzzles = list()
     with open(path, "r") as f:
@@ -101,12 +90,16 @@ def main():
                 continue
             grid, regions = parse_suguru_line_to_grid_and_regions(line)
             puzzles.append((grid, regions))
+    return puzzles
+
+def main():
 
     grid, solution, regions = parse_suguru_binary(
-        './unique_samples/9x9_45.data'
+        './samples/9x9_45.data'
     )
-    s = Suguru(grid, solution, regions)
-    s.show(True)
+    s = Suguru(grid, regions, SuguruSolvers.DeterministicEngine)
+    s.solve()
+    s.show()
 
 
 if __name__ == '__main__':

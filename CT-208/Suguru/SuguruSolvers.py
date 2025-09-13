@@ -1,4 +1,5 @@
 import itertools
+import time
 import numpy as np
 from abc import abstractmethod, ABC
 
@@ -55,13 +56,15 @@ class Tile:
 
 
 class BaseSolver(ABC):
-    def __init__(self, grid, regions):
+    def __init__(self, grid, regions, delay=0):
         self.grid = grid.copy()
         self.regions = regions.copy()
         self.rows, self.cols = self.grid.shape
 
         self.tile_grid = np.full((self.rows, self.cols), None, dtype=Tile)
         self.polynomios_dic = dict()
+
+        self.delay = delay
 
         self._setup_polynomios()
 
@@ -105,11 +108,12 @@ class BaseSolver(ABC):
 
 
 class DeterministicEngine(BaseSolver):
-    def __init__(self, grid, regions):
-        super().__init__(grid, regions)
+    def __init__(self, grid, regions, delay=0):
+        super().__init__(grid, regions, delay)
 
     def solve(self):
         while self._apply_rules():
+            time.sleep(self.delay)
             continue
         return self._solved()
 
@@ -331,3 +335,85 @@ class BacktrackSolver(BaseSolver):
 
         self.tile_grid[i, j].value = 0
         return False
+
+
+
+class Checker:
+    def __init__(self,):
+        pass
+
+    @staticmethod
+    def solved(grid: np.array, regions: np.array):
+        grid = grid.copy()
+        regions = regions.copy()
+        rows, cols = grid.shape
+        for i in range(rows):
+            for j in range(cols):
+                value = grid[i, j]
+                region = regions[i, j]
+
+                # if the tile doesn't have a value
+                if value == 0:
+                    return False
+
+                # if the tile has a number which does not belong to its group
+                numbers = set(range(1, np.count_nonzero(regions == region) + 1))
+                if value not in numbers:
+                    return False
+                
+                # if the tile has conflicts with neighbour tiles
+                ps = [(1, 0), (0, 1), (1, 1), (-1, -1), (-1, 0), (0, -1), (1, -1), (-1, 1)]
+                n8 = [(i + x, j + y) for x, y in ps if 0 <= (i + x) < rows and 0 <= (j + y) < cols]
+                neighbour_values = set([grid[x, y] for x, y in n8])
+
+                if value in neighbour_values:
+                    return False
+                
+                # if the tile has a number already taken by someone in the group
+                xs, ys = np.where(regions == region)
+                in_group_values = list(grid[p] for p in zip(xs, ys) if p != (i, j))
+
+                if value in in_group_values:
+                    return False
+                
+        return True
+
+    @staticmethod
+    def rot_tiles(grid: np.array, regions: np.array):
+        rotten = list()
+        grid = grid.copy()
+        regions = regions.copy()
+        rows, cols = grid.shape
+        for i in range(rows):
+            for j in range(cols):
+                value = grid[i, j]
+                region = regions[i, j]
+
+                # if the tile doesn't have a value
+                if value == 0:
+                    rotten.append((i,j))
+                    continue
+
+                # if the tile has a number which does not belong to its group
+                numbers = set(range(1, np.count_nonzero(regions == region) + 1))
+                if value not in numbers:
+                    rotten.append((i, j))
+                    continue
+                
+                # if the tile has conflicts with neighbour tiles
+                ps = [(1, 0), (0, 1), (1, 1), (-1, -1), (-1, 0), (0, -1), (1, -1), (-1, 1)]
+                n8 = [(i + x, j + y) for x, y in ps if 0 <= (i + x) < rows and 0 <= (j + y) < cols]
+                neighbour_values = set([grid[x, y] for x, y in n8])
+
+                if value in neighbour_values:
+                    rotten.append((i, j))
+                    continue
+                
+                # if the tile has a number already taken by someone in the group
+                xs, ys = np.where(regions == region)
+                in_group_values = list(grid[p] for p in zip(xs, ys) if p != (i, j))
+
+                if value in in_group_values:
+                    rotten.append((i, j))
+                
+        return rotten

@@ -84,6 +84,12 @@ class SuguruGUI:
                                        )
         self.root.update_idletasks()
 
+    def set_rotten(self, i, j):
+        v = self.grid[i, j]
+        self.canvas.itemconfig(self.cells[(i, j)],
+                               text=str(v) if v else "0", fill='red'
+                               )
+        self.root.update_idletasks()
 
 def display_suguru(rows, cols, grid, regions):
     root = tk.Tk()
