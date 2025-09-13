@@ -31,18 +31,18 @@ class Suguru:
     @staticmethod
     def _update_grid_periodically(gui, suguru):
         while True:
-            de = SuguruSolvers.DeterministicEngine(suguru.grid, suguru.regions)
-            while de._apply_rules():
-                de._update_main_grid()
-                suguru.grid = de.grid
-                # Schedule the GUI update on the main thread
-                gui.root.after(0, gui.set_grid, suguru.grid)
-                time.sleep(0.1)  # update every second
+            de = SuguruSolvers.BacktrackSolver(suguru.grid, suguru.regions)
+            de.solve()
+            suguru.grid = de.grid
+            # Schedule the GUI update on the main thread
+            gui.root.after(0, gui.set_grid, suguru.grid)
+            time.sleep(0.1)  # update every second
+            
             if de._solved():
                 gui.set_solved()
-            time.sleep(2)
-            gui.root.after(0, gui.root.quit)
-            break
+                time.sleep(2)
+                #gui.root.after(0, gui.root.quit)
+                break
                  
 def parse_suguru_line_to_grid_and_regions(line):
     data = json.loads(line)
@@ -91,7 +91,7 @@ def main():
             grid, regions = parse_suguru_line_to_grid_and_regions(line)
             puzzles.append((grid, regions))
 
-    g,s,r = parse_suguru_binary('./samples/15x15_1.data')
+    g,s,r = parse_suguru_binary('./unique_samples/9x9_45.data')
     s = Suguru(g, s, r)
     s.show(True)
 

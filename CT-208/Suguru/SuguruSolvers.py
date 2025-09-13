@@ -1,6 +1,10 @@
 import itertools
 import numpy as np
+from abc import abstractmethod, ABC
 
+'''
+Common infrastructure for all tiles.
+'''
 class Tile:
     def __init__(self, row, col, grid, value, region, polynomio):
         self.row = row
@@ -49,7 +53,7 @@ class Tile:
             return False
         return True
 
-class DeterministicEngine:
+class BaseSolver(ABC):
     def __init__(self, grid, regions):
         self.grid = grid.copy()
         self.regions = regions.copy()
@@ -60,10 +64,22 @@ class DeterministicEngine:
 
         self._setup_polynomios()
 
-    def try_solve(self):
-        while self._apply_rules():
-            continue
-        return self._solved()
+    def _setup_polynomios(self):
+        # Polynomios dict do not exist yet. So build them first and pass None
+        for i in range(self.rows):
+            for j in range(self.cols):
+                r = self.regions[i][j]
+                v = self.grid[i,j]
+                if r not in self.polynomios_dic:
+                    self.polynomios_dic[r] = list()
+                new_tile = Tile(i, j, self.tile_grid, v, r, None)
+                self.tile_grid[i,j] = new_tile
+                self.polynomios_dic[r].append(new_tile)
+
+        # Update tiles so each one knows its own polynomio
+        for region, polynomio in self.polynomios_dic.items():
+            for tile in polynomio:
+                tile._set_polynomio(polynomio)
 
     def _solved(self):
         for region, polynomio in self.polynomios_dic.items():
@@ -71,8 +87,35 @@ class DeterministicEngine:
                 return False
         return True
 
+    def _update_main_grid(self):
+        for i in range(self.rows):
+            for j in range(self.cols):
+                self.grid[i,j] = self.tile_grid[i,j].value
+
+    def _solved_polynomio(self, polynomio):
+        for tile in polynomio:
+            if not tile.is_consistent():
+                return False
+        return True
+
+    @abstractmethod
+    def solve(self):
+        pass
+
+'''
+Deterministic Engine solver.
+Based on the rules described on the website.
+'''
+class DeterministicEngine(BaseSolver):
+    def __init__(self, grid, regions):
+        super().__init__(grid, regions)
+
+    def solve(self):
+        while self._apply_rules():
+            continue
+        return self._solved()
+
     def _apply_rules(self):
-        print('rule')
         if self._BaseCaseRule():
             return True
         if self._ExclusionRule():
@@ -95,32 +138,6 @@ class DeterministicEngine:
             return True
     
         return False
-
-    def _update_main_grid(self):
-        for i in range(self.rows):
-            for j in range(self.cols):
-                self.grid[i,j] = self.tile_grid[i,j].value
-
-    def _setup_polynomios(self):
-        for i in range(self.rows):
-            for j in range(self.cols):
-                r = self.regions[i][j]
-                v = self.grid[i,j]
-                if r not in self.polynomios_dic:
-                    self.polynomios_dic[r] = list()
-                new_tile = Tile(i, j, self.tile_grid, v, r, None)
-                self.tile_grid[i,j] = new_tile
-                self.polynomios_dic[r].append(new_tile)
-        
-        for region, polynomio in self.polynomios_dic.items():
-            for tile in polynomio:
-                tile._set_polynomio(polynomio)
-
-    def _solved_polynomio(self, polynomio):
-        for tile in polynomio:
-            if not tile.is_consistent():
-                return False
-        return True
     
     def _BaseCaseRule(self):
         ret = False
@@ -284,4 +301,47 @@ class DeterministicEngine:
                                         ret = True
                                         nt.candidates.difference_update(c_unique)
         return ret
+
+
+
+'''
+Backtrack solver
+'''
+class BacktrackSolver(BaseSolver):
+    def __init__(self, grid, regions):
+        super().__init__(grid, regions)
+
+    def solve(self):
+        self._backtrack(0,0)
+        self._update_main_grid()
+
+    def _backtrack(self, i, j):
+        if i >= self.rows:
+            return True
+
+        k,l = (i+1, 0) if (j+1 >= self.cols) else (i, j+1)
+        if self.tile_grid[i,j].value != 0:
+            return self._backtrack(k,l)
+
+        polynomio = self.tile_grid[i,j].polynomio
+        numbers = range(1, len(polynomio)+1)
+
+        for number in numbers:
+            self.tile_grid[i,j].value = number
+            if self.tile_grid[i,j].is_consistent():
+                ret = self._backtrack(k,l)
+                if ret:
+                    return True
+            else:
+                self.tile_grid[i,j].value = 0
+        
+        self.tile_grid[i,j].value = 0
+        return False
+                    
+
+    def _set_polynomio_permutation(self, polynomio, permutation):
+        for i in range(len(polynomio)):
+            polynomio[i].value = permutation[i]
+
+
 
