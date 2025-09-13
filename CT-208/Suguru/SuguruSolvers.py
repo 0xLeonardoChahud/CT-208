@@ -2,9 +2,7 @@ import itertools
 import numpy as np
 from abc import abstractmethod, ABC
 
-'''
-Common infrastructure for all tiles.
-'''
+
 class Tile:
     def __init__(self, row, col, grid, value, region, polynomio):
         self.row = row
@@ -19,39 +17,42 @@ class Tile:
     def _set_polynomio(self, polynomio):
         self.polynomio = polynomio
         if self.value == 0:
-            self.candidates = set(range(1, len(self.polynomio)+1))
+            self.candidates = set(range(1, len(self.polynomio) + 1))
 
     def n8(self):
-        moves = [(1,0),(-1,0),(-1,1),(-1,-1),(0,1),(0,-1),(1,1),(1,-1)]
-        coords = [(self.row+i, self.col+j) for i,j in moves]
-        coords = [(c1,c2) for c1,c2 in coords if 0 <= c1 < self.height and 0 <= c2 < self.width]
-        n8_tiles = [self.grid[i,j] for i,j in coords]
+        moves = [(1, 0), (-1, 0), (-1, 1), (-1, -1),
+                 (0, 1), (0, -1), (1, 1), (1, -1)
+                 ]
+        coords = [(self.row+i, self.col+j) for i, j in moves]
+        coords = [(c1, c2) for c1, c2 in coords if 0 <= c1 < self.height and 0 <= c2 < self.width]
+        n8_tiles = [self.grid[i, j] for i, j in coords]
 
         return n8_tiles
 
     def n4(self):
-        moves = [(1,0),(-1,0),(0,1),(0,-1)]
-        coords = [(self.row+i, self.col+j) for i,j in moves]
-        coords = [(c1,c2) for c1,c2 in coords if 0 <= c1 < self.height and 0 <= c2 < self.width]
-        n4_tiles = [self.grid[i,j] for i,j in coords]
+        moves = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        coords = [(self.row+i, self.col+j) for i, j in moves]
+        coords = [(c1, c2) for c1, c2 in coords if 0 <= c1 < self.height and 0 <= c2 < self.width]
+        n4_tiles = [self.grid[i, j] for i, j in coords]
 
         return n4_tiles
 
     def is_consistent(self):
         if self.value == 0:
             return False
-        
-        if self.value not in set(range(1, len(self.polynomio)+1)):
+
+        if self.value not in set(range(1, len(self.polynomio) + 1)):
             return False
 
         n8_values = [t.value for t in self.n8()]
         if self.value in n8_values:
             return False
-        
+
         polynomio_values = [t.value for t in self.polynomio if t != self]
         if self.value in polynomio_values:
             return False
         return True
+
 
 class BaseSolver(ABC):
     def __init__(self, grid, regions):
@@ -68,12 +69,12 @@ class BaseSolver(ABC):
         # Polynomios dict do not exist yet. So build them first and pass None
         for i in range(self.rows):
             for j in range(self.cols):
-                r = self.regions[i][j]
-                v = self.grid[i,j]
+                r = self.regions[i, j]
+                v = self.grid[i, j]
                 if r not in self.polynomios_dic:
                     self.polynomios_dic[r] = list()
                 new_tile = Tile(i, j, self.tile_grid, v, r, None)
-                self.tile_grid[i,j] = new_tile
+                self.tile_grid[i, j] = new_tile
                 self.polynomios_dic[r].append(new_tile)
 
         # Update tiles so each one knows its own polynomio
@@ -90,7 +91,7 @@ class BaseSolver(ABC):
     def _update_main_grid(self):
         for i in range(self.rows):
             for j in range(self.cols):
-                self.grid[i,j] = self.tile_grid[i,j].value
+                self.grid[i, j] = self.tile_grid[i, j].value
 
     def _solved_polynomio(self, polynomio):
         for tile in polynomio:
@@ -102,10 +103,7 @@ class BaseSolver(ABC):
     def solve(self):
         pass
 
-'''
-Deterministic Engine solver.
-Based on the rules described on the website.
-'''
+
 class DeterministicEngine(BaseSolver):
     def __init__(self, grid, regions):
         super().__init__(grid, regions)
@@ -136,9 +134,9 @@ class DeterministicEngine(BaseSolver):
             return True
         if self._ForbiddenTriple():
             return True
-    
+
         return False
-    
+
     def _BaseCaseRule(self):
         ret = False
         for region, polynomio in self.polynomios_dic.items():
@@ -161,7 +159,7 @@ class DeterministicEngine(BaseSolver):
                                     t2.candidates.remove(t1.value)
                                     ret = True
         return ret
-    
+
     def _ForbiddenNeighbour(self):
         ret = False
         for region, polynomio in self.polynomios_dic.items():
@@ -198,7 +196,7 @@ class DeterministicEngine(BaseSolver):
                         c_union = t1.candidates.union(t2.candidates)
                         if len(c_union) == 2:
                             for t3 in polynomio:
-                                if t3 not in [t1,t2]:
+                                if t3 not in [t1, t2]:
                                     if t3.candidates and (t3.candidates - c_union) != t3.candidates:
                                         ret = True
                                     t3.candidates.difference_update(c_union)
@@ -213,12 +211,12 @@ class DeterministicEngine(BaseSolver):
                         c_union = t1.candidates.union(t2.candidates)
                         c_other = set()
                         for t3 in polynomio:
-                            if t3 not in [t1,t2]:
+                            if t3 not in [t1, t2]:
                                 c_other = c_other.union(t3.candidates)
                         diff = c_union.difference(c_other)
                         if c_other and len(diff) == 2:
                             for t4 in polynomio:
-                                if t4 not in [t1,t2]:
+                                if t4 not in [t1, t2]:
                                     if (t4.candidates - diff) != t4.candidates:
                                         ret = True
                                     t4.candidates.difference_update(diff)
@@ -228,12 +226,12 @@ class DeterministicEngine(BaseSolver):
         ret = False
         for region, polynomio in self.polynomios_dic.items():
             if not self._solved_polynomio(polynomio):
-                for t1,t2,t3 in itertools.combinations(polynomio, 3):
+                for t1, t2, t3 in itertools.combinations(polynomio, 3):
                     if t1.candidates and t2.candidates and t3.candidates:
                         c_union = t1.candidates.union(t2.candidates.union(t3.candidates))
                         if len(c_union) == 3:
                             for t4 in polynomio:
-                                if t4 not in [t1,t2,t3]:
+                                if t4 not in [t1, t2, t3]:
                                     if (t4.candidates - c_union) != t4.candidates:
                                         ret = True
                                     t4.candidates.difference_update(c_union)
@@ -243,16 +241,16 @@ class DeterministicEngine(BaseSolver):
         ret = False
         for region, polynomio in self.polynomios_dic.items():
             if not self._solved_polynomio(polynomio):
-                for t1,t2,t3 in itertools.combinations(polynomio, 3):
+                for t1, t2, t3 in itertools.combinations(polynomio, 3):
                     if t1.candidates and t2.candidates and t3.candidates:
                         c_union = t1.candidates.union(t2.candidates.union(t3.candidates))
                         c_other = set()
                         for t4 in polynomio:
-                            if t4 not in [t1,t2,t3]:
+                            if t4 not in [t1, t2, t3]:
                                 c_other = c_other.union(t4.candidates)
                         diff = c_union.difference(c_other)
                         if c_other and len(diff) == 3:
-                            if (t1.candidates - diff) !=  t1.candidates or (t2.candidates - diff) != t2.candidates or (t3.candidates - diff) != t3.candidates:
+                            if (t1.candidates - diff) != t1.candidates or (t2.candidates - diff) != t2.candidates or (t3.candidates - diff) != t3.candidates:
                                 ret = True
                             t1.candidates = diff
                             t2.candidates = diff
@@ -266,7 +264,7 @@ class DeterministicEngine(BaseSolver):
                 for t1, t2 in itertools.combinations(polynomio, 2):
                     if t1.candidates and t2.candidates:
                         c_union = t1.candidates.union(t2.candidates)
-                        c_other_in_region = set().union(*(t3.candidates for t3 in polynomio if t3 not in [t1,t2]))
+                        c_other_in_region = set().union(*(t3.candidates for t3 in polynomio if t3 not in [t1, t2]))
                         c_unique = c_union - c_other_in_region
                         if len(c_unique) == 2:
                             neighbours1 = set([n for n in t1.n8() if n not in polynomio])
@@ -284,10 +282,10 @@ class DeterministicEngine(BaseSolver):
         ret = False
         for region, polynomio in self.polynomios_dic.items():
             if not self._solved_polynomio(polynomio):
-                for t1,t2,t3 in itertools.combinations(polynomio, 3):
+                for t1, t2, t3 in itertools.combinations(polynomio, 3):
                     if t1.candidates and t2.candidates and t3.candidates:
                         c_union = t1.candidates.union(t2.candidates.union(t3.candidates))
-                        c_other_in_region = set().union(*(t4.candidates for t4 in polynomio if t4 not in [t1,t2,t3]))
+                        c_other_in_region = set().union(*(t4.candidates for t4 in polynomio if t4 not in [t1, t2, t3]))
                         c_unique = c_union - c_other_in_region
                         if len(c_unique) == 3:
                             neighbours1 = set([n for n in t1.n8() if n not in polynomio])
@@ -303,37 +301,33 @@ class DeterministicEngine(BaseSolver):
         return ret
 
 
-'''
-Backtrack solver
-'''
 class BacktrackSolver(BaseSolver):
     def __init__(self, grid, regions):
         super().__init__(grid, regions)
 
     def solve(self):
-        self._backtrack(0,0)
+        self._backtrack(0, 0)
         self._update_main_grid()
 
     def _backtrack(self, i, j):
         if i >= self.rows:
             return True
 
-        k,l = (i+1, 0) if (j+1 >= self.cols) else (i, j+1)
-        if self.tile_grid[i,j].value != 0:
-            return self._backtrack(k,l)
+        x, y = (i+1, 0) if (j+1 >= self.cols) else (i, j+1)
+        if self.tile_grid[i, j].value != 0:
+            return self._backtrack(x, y)
 
-        polynomio = self.tile_grid[i,j].polynomio
+        polynomio = self.tile_grid[i, j].polynomio
         numbers = range(1, len(polynomio)+1)
 
         for number in numbers:
-            self.tile_grid[i,j].value = number
-            if self.tile_grid[i,j].is_consistent():
-                ret = self._backtrack(k,l)
+            self.tile_grid[i, j].value = number
+            if self.tile_grid[i, j].is_consistent():
+                ret = self._backtrack(x, y)
                 if ret:
                     return True
             else:
-                self.tile_grid[i,j].value = 0
-        
-        self.tile_grid[i,j].value = 0
-        return False
+                self.tile_grid[i, j].value = 0
 
+        self.tile_grid[i, j].value = 0
+        return False

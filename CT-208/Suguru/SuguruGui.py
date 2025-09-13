@@ -3,6 +3,7 @@ import argparse
 import os
 import numpy as np
 
+
 class SuguruGUI:
     def __init__(self, root, rows, cols, grid, regions, cell_size=60):
         self.root = root
@@ -65,24 +66,28 @@ class SuguruGUI:
                     self.canvas.create_line(x2, y1, x2, y2, width=3)
 
     def set_grid(self, grid):
-        """Update all cells at once from a 2D numpy array or suguru.grid."""
         for i in range(self.rows):
             for j in range(self.cols):
                 self.grid = grid
                 val = self.grid[i, j]
-                self.canvas.itemconfig(self.cells[(i, j)], text=str(val) if val else "")
+                self.canvas.itemconfig(self.cells[(i, j)],
+                                       text=str(val) if val else ""
+                                       )
         self.root.update_idletasks()
 
     def set_solved(self):
-        for k in range(self.rows):
-            for l in range(self.cols):
-                v = self.grid[k,l]
-                self.canvas.itemconfig(self.cells[(k, l)], text=str(v) if v else "", fill='green')
-        self.root.update_idletasks()        
+        for i in range(self.rows):
+            for j in range(self.cols):
+                v = self.grid[i, j]
+                self.canvas.itemconfig(self.cells[(i, j)],
+                                       text=str(v) if v else "", fill='green'
+                                       )
+        self.root.update_idletasks()
+
 
 def display_suguru(rows, cols, grid, regions):
     root = tk.Tk()
-    gui = SuguruGUI(root, rows, cols, grid, regions, cell_size=80)
+    _ = SuguruGUI(root, rows, cols, grid, regions, cell_size=80)
     root.mainloop()
 
 
@@ -104,10 +109,9 @@ def main():
 
         arr = np.fromfile(fp, dtype=np.int16).reshape(3, rows, cols)
         grid, solved, regions = arr
-    
+
     display_suguru(rows, cols, grid, regions)
-        
-        
+
 
 if __name__ == '__main__':
     main()
