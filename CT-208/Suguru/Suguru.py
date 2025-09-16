@@ -96,7 +96,7 @@ def parse_json_file(path):
 def main():
 
     grid, solution, regions = parse_suguru_binary(
-        './samples/9x9_1.data'
+        './samples/20x20_1.data'
     )
     s = Suguru(grid, regions, SASolver.SASolver, 0.01)
     #s = Suguru(grid, regions, SuguruSolvers.DeterministicEngine, 0.2)

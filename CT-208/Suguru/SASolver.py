@@ -13,14 +13,16 @@ class SASolver(SuguruSolvers.BaseSolver):
             'shuffle': None,
             'swap': None
         }
+
+        self.tips = list(map(tuple, np.argwhere(self.grid != 0)))
     
     def solve(self):
         # Apply de
-        de = SuguruSolvers.DeterministicEngine(self.grid, self.regions)
-        while de._apply_rules():
-            continue
-        de._update_main_grid()
-        self.grid = de.grid
+        #de = SuguruSolvers.DeterministicEngine(self.grid, self.regions)
+        #while de._apply_rules():
+        #   continue
+        #de._update_main_grid()
+        #self.grid = de.grid
 
         # Fill with random numbers
         null_positions = np.argwhere(self.grid == 0)
@@ -41,9 +43,9 @@ class SASolver(SuguruSolvers.BaseSolver):
         
         cost = self._get_current_cost()
         temperature = 2
-        min_temperature = 1e-1
-        iterations_pert_t = 100
-        cooling_rate = 0.95
+        min_temperature = 1e-5
+        iterations_pert_t = 10
+        cooling_rate = 0.85
 
         while cost > 0:
             for i in range(iterations_pert_t):
@@ -91,16 +93,20 @@ class SASolver(SuguruSolvers.BaseSolver):
             region = self._get_random_invalid_region()
             length = np.count_nonzero(self.regions == region)
         
+        # Get positions within the random selected region
         positions = np.argwhere(self.regions == region)
 
+        # Do not change fixed tiles
+        positions = [(i, j) for i, j in positions if (i, j) not in self.tips]
         if np.random.rand() < 0.01:
-            numbers = list(range(1, length + 1))
+            numbers = [self.grid[i, j] for i, j in positions]
             np.random.shuffle(numbers)
+            
 
             original = {(i, j):self.grid[i, j] for i, j in positions}
             self.changes['shuffle'] = original
 
-            for k, (i, j) in enumerate(positions):
+            for k, (i, j) in enumerate(original.keys()):
                 self.grid[i, j] = numbers[k]
             self.changes['swap'] = None
         else:
@@ -224,7 +230,7 @@ def main():
         return
 
     grid, solution, regions = parse_suguru_binary(
-        './samples/9x9_1.data'
+        path
     )
 
     solver = SASolver(grid, regions)
