@@ -77,6 +77,11 @@ class SuguruGenerator:
         # Uniqueness
         if unique:
             self._make_it_unique()
+        else:
+            for i in range (self.m):
+                for j in range(self.n):
+                    if np.random.choice([True, True, True, False]):
+                        self.grid[i, j] = 0
 
         return solved
 
@@ -111,17 +116,12 @@ class SuguruGenerator:
     def _perform_region_expansion(self):
         # Region expansion
         while np.any(self.regions == 0):
-            pos = [(i, j) for i in range(self.m) for j in range(self.n)]
             zeros = np.count_nonzero(self.regions == 0)
             zeros_after = zeros
-            while pos:
-                p = pos.pop()
+            positions = list(map(tuple, np.argwhere(self.regions == 0)))
+            while positions:
+                p = positions.pop()
                 x, y = p
-
-                region = self.regions[x, y]
-
-                if region != 0:
-                    continue
 
                 n8tv = [self.grid[i, j] for i, j in self._n8(x, y)]
                 n8tv = [n8t for n8t in n8tv if n8t != 0]
@@ -133,13 +133,8 @@ class SuguruGenerator:
                 for r in n4r:
                     length = len(self.region_map[r])
                     value = length+1
-
-                    # For string format
-                    # _n8 = self._n8(x, y)
-                    # _n8 = [t for t in _n8 if self.regions[t] == r]
-                    # if len(_n8) >= 2:
-                    #    continue
-
+                    if value > 6:
+                        continue
                     if value not in n8tv:
                         self.regions[x, y] = r
                         self.grid[x, y] = value

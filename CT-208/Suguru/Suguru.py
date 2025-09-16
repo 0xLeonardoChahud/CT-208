@@ -6,6 +6,7 @@ import threading
 import os
 import tkinter as tk
 import json
+import SASolver
 
 
 class Suguru:
@@ -36,7 +37,7 @@ class Suguru:
         self._poll_updates(10)
 
     def _poll_updates(self, delay):
-        self.solver._update_main_grid()
+        #self.solver._update_main_grid()
         self.grid = self.solver.grid
         self.gui.set_grid(self.grid)
 
@@ -95,9 +96,10 @@ def parse_json_file(path):
 def main():
 
     grid, solution, regions = parse_suguru_binary(
-        './samples/9x9_45.data'
+        './samples/9x9_1.data'
     )
-    s = Suguru(grid, regions, SuguruSolvers.DeterministicEngine)
+    s = Suguru(grid, regions, SASolver.SASolver, 0.01)
+    #s = Suguru(grid, regions, SuguruSolvers.DeterministicEngine, 0.2)
     s.solve()
     s.show()
 

@@ -91,6 +91,7 @@ class BaseSolver(ABC):
                 return False
         return True
 
+
     def _update_main_grid(self):
         for i in range(self.rows):
             for j in range(self.cols):
