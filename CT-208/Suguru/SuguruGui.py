@@ -100,10 +100,14 @@ def display_suguru(rows, cols, grid, regions):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', help='Path to Suguru file')
+    parser.add_argument('--solved', help='Show solved Suguru', action='store_true')
+
+    parser.set_defaults(solved=False)
 
     args = parser.parse_args()
 
     path = args.path
+    solved_flag = args.solved
 
     if not os.path.isfile(path):
         print('[-] Invalid file')
@@ -116,7 +120,10 @@ def main():
         arr = np.fromfile(fp, dtype=np.int16).reshape(3, rows, cols)
         grid, solved, regions = arr
 
-    display_suguru(rows, cols, grid, regions)
+    if solved_flag:
+        display_suguru(rows, cols, solved, regions)
+    else:
+        display_suguru(rows, cols, grid, regions)
 
 
 if __name__ == '__main__':
