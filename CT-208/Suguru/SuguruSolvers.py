@@ -348,9 +348,7 @@ class Checker:
         grid = grid.copy()
         regions = regions.copy()
         rows, cols = grid.shape
-        for i in range(rows):
-            for j in range(cols):
-                value = grid[i, j]
+        for (i, j), value in np.ndenumerate(grid):
                 region = regions[i, j]
 
                 # if the tile doesn't have a value
@@ -358,7 +356,8 @@ class Checker:
                     return False
 
                 # if the tile has a number which does not belong to its group
-                numbers = set(range(1, np.count_nonzero(regions == region) + 1))
+                region_length = np.count_nonzero(regions == region)
+                numbers = set(range(1, region_length + 1))
                 if value not in numbers:
                     return False
                 
@@ -371,8 +370,8 @@ class Checker:
                     return False
                 
                 # if the tile has a number already taken by someone in the group
-                xs, ys = np.where(regions == region)
-                in_group_values = list(grid[p] for p in zip(xs, ys) if p != (i, j))
+                tiles = np.argwhere(regions == region)
+                in_group_values = list(grid[x, y] for x, y in tiles if (x, y) != (i, j))
 
                 if value in in_group_values:
                     return False
