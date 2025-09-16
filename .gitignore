@@ -3,3 +3,4 @@
 *.pyc
 **/__pycache__/
 MySolver.py
+samples.zip
