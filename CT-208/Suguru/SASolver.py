@@ -16,50 +16,74 @@ class SASolver(SuguruSolvers.BaseSolver):
 
         self.tips = list(map(tuple, np.argwhere(self.grid != 0)))
     
+        self.diff_cost = 0
+        self.neighbours = dict({(i, j):self._n8(i, j) for (i, j), _ in np.ndenumerate(self.grid)})
+        self.regions_map = dict({r:list(map(tuple, np.argwhere(self.regions == r))) for r in np.unique(self.regions)})
+        self.regions_lengths = dict({r:len(self.regions_map[r]) for r in np.unique(self.regions)})
+
     def solve(self):
-        # Apply de
+        # Preprocessing.
         #de = SuguruSolvers.DeterministicEngine(self.grid, self.regions)
         #while de._apply_rules():
-        #   continue
+        #    continue
         #de._update_main_grid()
         #self.grid = de.grid
 
+        start = time.perf_counter()
+        self._SA()
+        elapsed = time.perf_counter() - start
+        print('Elapsed: ', elapsed)
+
+        return SuguruSolvers.Checker.solved(self.grid, self.regions)
+
+
+    def _SA(self):
+
         # Fill with random numbers
+        n = np.count_nonzero(self.grid == 0)
         null_positions = np.argwhere(self.grid == 0)
         for i, j in null_positions:
             region = self.regions[i, j]
-            region_length = np.count_nonzero(self.regions == region)
+            region_length = self.regions_lengths[region]
             region_values = self._region_values(region)
 
             numbers = set(list(range(1, region_length + 1)))
             numbers -= region_values
             available = list(numbers - set(self._n8_values(i, j)))
-
             numbers = list(numbers)
+
             if available:
                 self.grid[i, j] = np.random.choice(available)
             else:
-                self.grid[i, j] = np.random.choice(numbers)
-        
-        cost = self._get_current_cost()
-        temperature = 2
-        min_temperature = 1e-5
-        iterations_pert_t = 10
-        cooling_rate = 0.85
+                if len(numbers):
+                    self.grid[i, j] = np.random.choice(numbers)
 
+
+        self.live_cost = self._get_current_cost()
+        cost = self.live_cost
+        temperature = 1
+        min_temperature = 5e-1
+        cooling_rate = 0.999
+
+        #iterations_pert_t = 5*int(np.sqrt(n))
+        iterations_pert_t = int(np.sqrt(n))
+
+        count = 0
         while cost > 0:
             for i in range(iterations_pert_t):
-                if temperature <= min_temperature:
-                    temperature = 2
+                if temperature < min_temperature:
+                    temperature *= 1.2
                 self._do_change()
 
-                new_cost = self._get_current_cost()
+                new_cost = cost + self.diff_cost
                 delta = new_cost - cost
 
                 if delta <= 0 or np.random.rand() < np.exp(-delta/temperature):
                     cost = new_cost
+                    count = 0
                 else:
                     self._undo_change()
+                    count += 1
                 
                 if cost <= 0:
                     break
@@ -70,58 +94,83 @@ class SASolver(SuguruSolvers.BaseSolver):
 
             temperature *= cooling_rate
 
-        print(SuguruSolvers.Checker.solved(self.grid, self.regions))
 
     def _get_random_pair_in_region(self):
         regions = list(np.unique(self.regions))
         np.random.shuffle(regions)
 
         for r in regions:
-            tiles = list(np.argwhere(self.regions == r))
+            tiles = self.regions_map[r]
             np.random.shuffle(tiles)
             if len(tiles) < 2:
                 continue
             return tiles.pop(), tiles.pop()
 
-
     def _do_change(self):
         self.changes['shuffle'] = None
         self.changes['swap'] = None
         region = self._get_random_invalid_region()
-        length = np.count_nonzero(self.regions == region)
-        while length < 2:
+        #region = np.random.choice(np.unique(self.regions))
+        length = self.regions_lengths[region]
+        positions = list()
+        while not positions:
             region = self._get_random_invalid_region()
-            length = np.count_nonzero(self.regions == region)
-        
-        # Get positions within the random selected region
-        positions = np.argwhere(self.regions == region)
+            #region = np.random.choice(np.unique(self.regions))
+            length = self.regions_lengths[region]
 
-        # Do not change fixed tiles
-        positions = [(i, j) for i, j in positions if (i, j) not in self.tips]
-        if np.random.rand() < 0.01:
+            if length < 2:
+                continue
+        
+            # Get positions within the random selected region
+            positions = self.regions_map[region]
+
+            # Do not change fixed tiles
+            positions = [(i, j) for i, j in positions if (i, j) not in self.tips]
+
+        # Extract rows and columns
+        rows = [i for i, _ in positions]
+        cols = [j for _, j in positions]
+
+
+        # Bottom-right corner
+
+        # Before cost
+        top_left = (max(min(rows)-1, 0), max(min(cols)-1, 0))
+        bottom_right = (min(max(rows)+1, self.rows-1), min(max(cols)+1, self.cols-1))
+
+        before_cost = 0
+        for i in range(top_left[0], bottom_right[0]+1):
+            for j in range(top_left[1], bottom_right[1]+1):
+                n8_values = self._n8_values(i, j)
+                if self.grid[i,j] in n8_values:
+                    before_cost += 1
+
+        if np.random.rand() < 0.05:
             numbers = [self.grid[i, j] for i, j in positions]
             np.random.shuffle(numbers)
-            
-
             original = {(i, j):self.grid[i, j] for i, j in positions}
             self.changes['shuffle'] = original
-
             for k, (i, j) in enumerate(original.keys()):
                 self.grid[i, j] = numbers[k]
             self.changes['swap'] = None
         else:
-
             np.random.shuffle(positions)
             if len(positions) > 2:
                 for t1, t2 in itertools.combinations(positions, 2):
                     self._swap_tiles(t1, t2)
                     self.changes['swap'] = [(t1[0], t1[1]), (t2[0], t2[1])]
                     self.changes['shuffle'] = None
-                    return
+                    break
+        
+        after_cost = 0
+        for i in range(top_left[0], bottom_right[0]+1):
+            for j in range(top_left[1], bottom_right[1]+1):
+                n8_values = self._n8_values(i, j)
+                if self.grid[i,j] in n8_values:
+                    after_cost += 1
+        
+        self.diff_cost = after_cost - before_cost
                     
-                    
-    
-
     def _undo_change(self):
         if self.changes['shuffle'] is not None:
             original = self.changes['shuffle']
@@ -135,16 +184,15 @@ class SASolver(SuguruSolvers.BaseSolver):
         regions = np.unique(self.regions)
         np.random.shuffle(regions)
         for r in regions:
-            tiles = np.argwhere(self.regions == r)
+            tiles = self.regions_map[r]
             for t in tiles:
                 if self._conflict_count(t) > 0:
                     return r
         return None
-              
 
     def _shuffle_region(self, region):
-        positions = np.argwhere(self.regions == region)
-        length = np.count_nonzero(self.regions == region)
+        positions = self.regions_map[region]
+        length = self.regions_lengths[region]
 
         original = {(i, j):self.grid[i, j] for i, j in positions}
         numbers = list(range(1, length + 1))
@@ -173,13 +221,10 @@ class SASolver(SuguruSolvers.BaseSolver):
 
     def _get_current_cost(self):
         cost = 0
-        for i in range(self.rows):
-            for j in range(self.cols):
-                value = self.grid[i, j]
-                n8_values = np.array(self._n8_values(i, j))
-                #cost += np.count_nonzero(n8_values == value)
-                if value in n8_values:
-                    cost += 1
+        for (i, j), value in np.ndenumerate(self.grid):
+            n8_values = np.array(self._n8_values(i, j))
+            if value in n8_values:
+                cost += 1
         return cost
 
     def _n8(self, i, j):
@@ -193,13 +238,14 @@ class SASolver(SuguruSolvers.BaseSolver):
         return n8s
 
     def _n8_values(self, i, j):
-        return list(set([self.grid[m, n] for m, n in self._n8(i, j)]))
+        return list(set([self.grid[m, n] for m, n in self.neighbours[(i, j)]]))
 
     def _region_values(self, region_id):
         values = set()
-        positions = np.argwhere(self.regions == region_id)
+        positions = self.regions_map[region_id]
         for i, j in positions:
-            values.add(self.grid[i, j])
+            if self.grid[i, j] != 0:
+                values.add(self.grid[i, j])
         return values
     
 
@@ -220,9 +266,7 @@ def parse_suguru_binary(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', help='Path to Suguru file')
-
     args = parser.parse_args()
-
     path = args.path
 
     if not os.path.isfile(path):
@@ -234,8 +278,10 @@ def main():
     )
 
     solver = SASolver(grid, regions)
-    solver.solve()
-    print(solver.grid)
+    solved = solver.solve()
+    if solved:
+        print(solver.grid)
+        print('[+] Solved.')
 
 if __name__ == '__main__':
     main()
