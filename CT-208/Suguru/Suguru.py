@@ -6,6 +6,7 @@ import threading
 import os
 import tkinter as tk
 import json
+import argparse
 import SASolver
 
 
@@ -94,12 +95,15 @@ def parse_json_file(path):
     return puzzles
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--path', help='Path to Suguru file')
+    args = parser.parse_args()
+    path = args.path
 
     grid, solution, regions = parse_suguru_binary(
-        './samples/20x20_1.data'
+        path
     )
     s = Suguru(grid, regions, SASolver.SASolver, 0.01)
-    #s = Suguru(grid, regions, SuguruSolvers.DeterministicEngine, 0.2)
     s.solve()
     s.show()
 
