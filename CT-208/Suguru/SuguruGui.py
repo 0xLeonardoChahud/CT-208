@@ -67,9 +67,9 @@ class SuguruGUI:
                     self.canvas.create_line(x2, y1, x2, y2, width=3)
 
     def set_grid(self, grid):
+        self.grid = grid.copy()
         for i in range(self.rows):
             for j in range(self.cols):
-                self.grid = grid
                 val = self.grid[i, j]
                 values = [self.grid[x, y] for x, y in self._n8(i, j)]
                 if (i, j) in self.tips:
@@ -90,7 +90,7 @@ class SuguruGUI:
         self.root.update_idletasks()
 
     def set_tips(self, tips):
-        self.tips = tips
+        self.tips = tips.copy()
 
     def set_solved(self):
         for i in range(self.rows):
@@ -99,13 +99,6 @@ class SuguruGUI:
                 self.canvas.itemconfig(self.cells[(i, j)],
                                        text=str(v) if v else "", fill='green'
                                        )
-        self.root.update_idletasks()
-
-    def set_rotten(self, i, j):
-        v = self.grid[i, j]
-        self.canvas.itemconfig(self.cells[(i, j)],
-                               text=str(v) if v else "0", fill='red'
-                               )
         self.root.update_idletasks()
 
     def _n8(self, i, j):

@@ -1,14 +1,11 @@
-import time
-import SuguruSolvers
 import numpy as np
 import SuguruGui
 import threading
 import os
 import tkinter as tk
-import json
 import argparse
 import SASolver
-
+import SuguruSolvers
 
 class Suguru:
     def __init__(self, grid, regions, solver: SuguruSolvers.BaseSolver, delay=0):
@@ -39,7 +36,6 @@ class Suguru:
         self._poll_updates(10)
 
     def _poll_updates(self, delay):
-        #self.solver._update_main_grid()
         self.grid = self.solver.grid.copy()
         self.tips = self.solver.tips.copy()
         self.gui.set_grid(self.grid)
@@ -47,6 +43,7 @@ class Suguru:
 
         if SuguruSolvers.Checker.solved(self.grid, self.regions):
             self.gui.set_solved()
+            return
         self.root.after(delay, lambda: self._poll_updates(delay))
 
 
