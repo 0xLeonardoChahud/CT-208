@@ -257,9 +257,9 @@ class DeterministicEngine(BaseSolver):
                         if c_other and len(diff) == 3:
                             if (t1.candidates - diff) != t1.candidates or (t2.candidates - diff) != t2.candidates or (t3.candidates - diff) != t3.candidates:
                                 ret = True
-                            t1.candidates = diff
-                            t2.candidates = diff
-                            t3.candidates = diff
+                            t1.candidates -= diff
+                            t2.candidates -= diff
+                            t3.candidates -= diff
         return ret
 
     def _ForbiddenPairs(self):
