@@ -12,6 +12,7 @@ class SuguruGUI:
         self.cell_size = cell_size
         self.grid = grid
         self.regions = regions
+        self.tips = np.argwhere(self.grid != 0)
 
         self.canvas = tk.Canvas(
             root,
@@ -70,10 +71,26 @@ class SuguruGUI:
             for j in range(self.cols):
                 self.grid = grid
                 val = self.grid[i, j]
-                self.canvas.itemconfig(self.cells[(i, j)],
-                                       text=str(val) if val else ""
-                                       )
+                values = [self.grid[x, y] for x, y in self._n8(i, j)]
+                if (i, j) in self.tips:
+                    self.canvas.itemconfig(self.cells[(i, j)],
+                                           text=str(val) if val else "",
+                                            fill='lightblue'
+                                           )
+                elif val in values:
+                    self.canvas.itemconfig(self.cells[(i, j)],
+                                           text=str(val) if val else "",
+                                           fill='red'
+                                           )
+                else:
+                    self.canvas.itemconfig(self.cells[(i, j)],
+                                           text=str(val) if val else "",
+                                           fill='black'
+                                           )
         self.root.update_idletasks()
+
+    def set_tips(self, tips):
+        self.tips = tips
 
     def set_solved(self):
         for i in range(self.rows):
@@ -90,6 +107,16 @@ class SuguruGUI:
                                text=str(v) if v else "0", fill='red'
                                )
         self.root.update_idletasks()
+
+    def _n8(self, i, j):
+        moves = [(1,0),(0,1),(1,1),(-1,-1),(-1,0),(0,-1),(1,-1),(-1,1)]
+        n8s = list()
+        for m, n in moves:
+            nx = i + m
+            ny = j + n
+            if 0 <= nx < self.rows and 0 <= ny < self.cols:
+                n8s.append((nx, ny))
+        return n8s
 
 def display_suguru(rows, cols, grid, regions):
     root = tk.Tk()
