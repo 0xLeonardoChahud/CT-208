@@ -1,7 +1,9 @@
 import itertools
 import time
+import argparse
 import numpy as np
 from abc import abstractmethod, ABC
+import Suguru
 
 
 class Tile:
@@ -116,7 +118,8 @@ class DeterministicEngine(BaseSolver):
         while self._apply_rules():
             time.sleep(self.delay)
             continue
-        return self._solved()
+        self._update_main_grid()
+        return Checker.solved(self.grid, self.regions)
 
     def _apply_rules(self):
         if self._BaseCaseRule():
@@ -313,6 +316,7 @@ class BacktrackSolver(BaseSolver):
     def solve(self):
         self._backtrack(0, 0)
         self._update_main_grid()
+        return Checker.solved(self.grid, self.regions)
 
     def _backtrack(self, i, j):
         if i >= self.rows:
@@ -417,3 +421,36 @@ class Checker:
                     rotten.append((i, j))
                 
         return rotten
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--solver', help='Solver to be used', choices=['de', 'backtrack'])
+    parser.add_argument('--path', help='Path to target Suguru puzzle')
+    args = parser.parse_args()
+
+    solver_arg = args.solver
+    path = args.path
+
+    grid, solved, regions = Suguru.parse_suguru_binary(path)
+    if solver_arg == 'de':
+        solver = DeterministicEngine(grid, regions)
+    elif solver_arg == 'backtrack':
+        solver = BacktrackSolver(grid, regions)
+
+    print('Original grid')
+    print(grid)
+    start = time.perf_counter()
+    solved = solver.solve()
+    elapsed = time.perf_counter() - start
+    print('Final grid')
+    print(solver.grid)
+    print('Elapsed: {}s'.format(elapsed))
+    
+    if solved:
+        print('[+] Solved')
+    else:
+        print('[-] Not solved')
+
+if __name__ == '__main__':
+    main()
