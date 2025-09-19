@@ -3,8 +3,6 @@ import time
 import argparse
 import numpy as np
 from abc import abstractmethod, ABC
-import Suguru
-
 
 class Tile:
     def __init__(self, row, col, grid, value, region, polynomio):
@@ -342,7 +340,6 @@ class BacktrackSolver(BaseSolver):
         return False
 
 
-
 class Checker:
     def __init__(self,):
         pass
@@ -422,6 +419,17 @@ class Checker:
                 
         return rotten
 
+def parse_suguru_binary(path):
+    if not os.path.isfile(path):
+        raise Exception('Error: invalid file path')
+
+    # Load from file
+    with open(path, 'rb') as fp:
+        rows = int.from_bytes(fp.read(2))
+        cols = int.from_bytes(fp.read(2))
+        arr = np.fromfile(fp, dtype=np.int16).reshape(3, rows, cols)
+    return arr
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -446,7 +454,7 @@ def main():
     print('Final grid')
     print(solver.grid)
     print('Elapsed: {}s'.format(elapsed))
-    
+
     if solved:
         print('[+] Solved')
     else:
