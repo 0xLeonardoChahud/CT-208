@@ -2,7 +2,9 @@ import itertools
 import time
 import argparse
 import numpy as np
+import os
 from abc import abstractmethod, ABC
+#import Suguru
 
 class Tile:
     def __init__(self, row, col, grid, value, region, polynomio):
@@ -63,6 +65,8 @@ class BaseSolver(ABC):
 
         self.tile_grid = np.full((self.rows, self.cols), None, dtype=Tile)
         self.polynomios_dic = dict()
+        
+        self.tips = list(map(tuple, np.argwhere(self.grid != 0)))
 
         self.delay = delay
 
@@ -84,13 +88,6 @@ class BaseSolver(ABC):
         for region, polynomio in self.polynomios_dic.items():
             for tile in polynomio:
                 tile._set_polynomio(polynomio)
-
-    def _solved(self):
-        for region, polynomio in self.polynomios_dic.items():
-            if not self._solved_polynomio(polynomio):
-                return False
-        return True
-
 
     def _update_main_grid(self):
         for i in range(self.rows):
@@ -115,8 +112,8 @@ class DeterministicEngine(BaseSolver):
     def solve(self):
         while self._apply_rules():
             time.sleep(self.delay)
+            self._update_main_grid()
             continue
-        self._update_main_grid()
         return Checker.solved(self.grid, self.regions)
 
     def _apply_rules(self):
@@ -308,8 +305,12 @@ class DeterministicEngine(BaseSolver):
 
 
 class BacktrackSolver(BaseSolver):
-    def __init__(self, grid, regions):
-        super().__init__(grid, regions)
+    def __init__(self, grid, regions, delay=0):
+        super().__init__(grid, regions, delay)
+        
+        self.backtracks_count = 0
+        self.max_depth = 0
+        self.depth = 0
 
     def solve(self):
         self._backtrack(0, 0)
@@ -317,8 +318,19 @@ class BacktrackSolver(BaseSolver):
         return Checker.solved(self.grid, self.regions)
 
     def _backtrack(self, i, j):
+        self.backtracks_count += 1
+        self.depth += 1
+
         if i >= self.rows:
+            self.depth -= 1
             return True
+
+        if self.backtracks_count >= int(1e6):
+            self.depth -= 1
+            return False
+        
+        if self.depth > self.max_depth:
+            self.max_depth = self.depth
 
         x, y = (i+1, 0) if (j+1 >= self.cols) else (i, j+1)
         if self.tile_grid[i, j].value != 0:
@@ -329,14 +341,18 @@ class BacktrackSolver(BaseSolver):
 
         for number in numbers:
             self.tile_grid[i, j].value = number
+            time.sleep(self.delay)
+            self._update_main_grid()
             if self.tile_grid[i, j].is_consistent():
                 ret = self._backtrack(x, y)
                 if ret:
+                    self.depth -= 1
                     return True
             else:
                 self.tile_grid[i, j].value = 0
 
         self.tile_grid[i, j].value = 0
+        self.depth -= 1
         return False
 
 
@@ -354,12 +370,14 @@ class Checker:
 
                 # if the tile doesn't have a value
                 if value == 0:
+                    print('[ NOT SOLVED ] Tile with empty value')
                     return False
 
                 # if the tile has a number which does not belong to its group
                 region_length = np.count_nonzero(regions == region)
                 numbers = set(range(1, region_length + 1))
                 if value not in numbers:
+                    print('[ NOT SOLVED ] Tile with a number that does not belong to its group')
                     return False
                 
                 # if the tile has conflicts with neighbour tiles
@@ -368,6 +386,7 @@ class Checker:
                 neighbour_values = set([grid[x, y] for x, y in n8])
 
                 if value in neighbour_values:
+                    print('[ NOT SOLVED ] Neighbour conflict')
                     return False
                 
                 # if the tile has a number already taken by someone in the group
@@ -375,6 +394,7 @@ class Checker:
                 in_group_values = list(grid[x, y] for x, y in tiles if (x, y) != (i, j))
 
                 if value in in_group_values:
+                    print('[ NOT SOLVED ] Value already used in a group')
                     return False
                 
         return True
@@ -440,7 +460,7 @@ def main():
     solver_arg = args.solver
     path = args.path
 
-    grid, solved, regions = Suguru.parse_suguru_binary(path)
+    grid, original_solved, regions = parse_suguru_binary(path)
     if solver_arg == 'de':
         solver = DeterministicEngine(grid, regions)
     elif solver_arg == 'backtrack':

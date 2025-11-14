@@ -48,6 +48,7 @@ class Suguru:
 
 
 
+# Usage:  grid, solution, regions = parse_suguru_binary(some_path)
 def parse_suguru_binary(path):
     if not os.path.isfile(path):
         raise Exception('Error: invalid file path')
@@ -57,20 +58,57 @@ def parse_suguru_binary(path):
         rows = int.from_bytes(fp.read(2))
         cols = int.from_bytes(fp.read(2))
         arr = np.fromfile(fp, dtype=np.int16).reshape(3, rows, cols)
+
     return arr
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', help='Path to Suguru file')
+    parser.add_argument('--delay', help='Delay to show animation', default=0.1)
+    parser.add_argument('--show', help='Show animation', default=False, action='store_true')
+    parser.add_argument('--solver', help='Select the solver to use', choices=['sa', 'de', 'bt'])
     args = parser.parse_args()
+
     path = args.path
+    delay = float(args.delay)
+    solver = args.solver
+    show = args.show
 
     grid, solution, regions = parse_suguru_binary(
         path
     )
-    s = Suguru(grid, regions, SASolver.SASolver, 0.001)
-    s.solve()
-    s.show()
+
+    solved = False
+    if solver == 'sa':
+        print('[+] Solving with Simulated Annealing')
+        if show:
+            s = Suguru(grid, regions, SASolver.SASolver, delay)
+            solved = s.solve()
+            s.show()
+        else:
+            s = SASolver.SASolver(grid, regions)
+            solved = s.solve()
+    elif solver == 'de':
+        if show:
+            s = Suguru(grid, regions, SuguruSolvers.DeterministicEngine, delay)
+            solved = s.solve()
+            s.show()
+        else:
+            s = SuguruSolvers.DeterministicEngine(grid, regions)
+            solved = s.solve()
+    elif solver == 'bt':
+        if show:
+            s = Suguru(grid, regions, SuguruSolvers.BacktrackSolver, delay)
+            solved = s.solve()
+            s.show()
+        else:
+            s = SuguruSolvers.BacktrackSolver(grid, regions)
+            solved = s.solve()
+    
+    if solved:
+        print('[+] Solved')
+    else:
+        print('[-] Not solved')
 
 
 if __name__ == '__main__':
