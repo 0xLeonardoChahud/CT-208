@@ -325,7 +325,7 @@ class BacktrackSolver(BaseSolver):
             self.depth -= 1
             return True
 
-        if self.backtracks_count >= int(1e6):
+        if self.backtracks_count >= int(1e5):
             self.depth -= 1
             return False
         
@@ -370,14 +370,14 @@ class Checker:
 
                 # if the tile doesn't have a value
                 if value == 0:
-                    print('[ NOT SOLVED ] Tile with empty value')
+                    #print('[ NOT SOLVED ] Tile with empty value')
                     return False
 
                 # if the tile has a number which does not belong to its group
                 region_length = np.count_nonzero(regions == region)
                 numbers = set(range(1, region_length + 1))
                 if value not in numbers:
-                    print('[ NOT SOLVED ] Tile with a number that does not belong to its group')
+                    #print('[ NOT SOLVED ] Tile with a number that does not belong to its group')
                     return False
                 
                 # if the tile has conflicts with neighbour tiles
@@ -386,7 +386,7 @@ class Checker:
                 neighbour_values = set([grid[x, y] for x, y in n8])
 
                 if value in neighbour_values:
-                    print('[ NOT SOLVED ] Neighbour conflict')
+                    #print('[ NOT SOLVED ] Neighbour conflict')
                     return False
                 
                 # if the tile has a number already taken by someone in the group
@@ -394,7 +394,7 @@ class Checker:
                 in_group_values = list(grid[x, y] for x, y in tiles if (x, y) != (i, j))
 
                 if value in in_group_values:
-                    print('[ NOT SOLVED ] Value already used in a group')
+                    #print('[ NOT SOLVED ] Value already used in a group')
                     return False
                 
         return True
