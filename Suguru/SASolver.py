@@ -89,7 +89,7 @@ class SASolver(SuguruSolvers.BaseSolver):
         resets = 0
         while cost > 0:
             for i in range(iterations_per_t):
-                if resets > 3:
+                if resets > 2:
                     cost = -1
                     break
                 if temperature < min_temperature:
