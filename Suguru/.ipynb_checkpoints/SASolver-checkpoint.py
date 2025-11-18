@@ -5,6 +5,8 @@ import SuguruSolvers
 import argparse
 import os
 import itertools
+import multiprocessing as mp
+import copy
 
 class SASolver(SuguruSolvers.BaseSolver):
     def __init__(self, grid, regions, delay=0, debug=False):
@@ -89,7 +91,7 @@ class SASolver(SuguruSolvers.BaseSolver):
         resets = 0
         while cost > 0:
             for i in range(iterations_per_t):
-                if resets > 3:
+                if resets > 2:
                     cost = -1
                     break
                 if temperature < min_temperature:
@@ -123,12 +125,13 @@ class SASolver(SuguruSolvers.BaseSolver):
         r1 = self._get_random_invalid_region()
         r2 = self._get_random_region()
 
+        # 10% of chance of choosing a region that is already valid
         if np.random.rand() < 0.1:
             invalid_region = r2
         else:
             invalid_region = r1
+        
         all_positions = self.regions_map[invalid_region]
-
         positions = [(i, j) for i, j in all_positions if (i, j) not in self.tips]
 
         before_cost = self._calculate_bound_cost(all_positions)
@@ -278,6 +281,34 @@ class SASolver(SuguruSolvers.BaseSolver):
     
 
 
+class ParallelSA:
+    def __init__(self, grid, regions, delay=0, debug=False):
+        self.grid = grid
+        self.regions = regions
+
+    @staticmethod
+    def worker(args):
+        grid, regions = args
+        solver = SASolver(grid, regions)
+        if solver.solve():
+            return solver.grid
+        return None
+
+    def solve(self):
+        with mp.Pool(processes=mp.cpu_count(), maxtasksperchild=1) as pool:
+            # Map returns results as soon as any finishes (using imap_unordered)
+            for result in pool.imap_unordered(
+                    ParallelSA.worker,
+                    ((copy.deepcopy(self.grid), copy.deepcopy(self.regions)) for _ in range(mp.cpu_count()))
+            ):
+                if result is not None:
+                    self.grid = result
+                    pool.terminate()   # kill all remaining workers
+                    return SuguruSolvers.Checker.solved(self.grid, self.regions)
+
+        return False
+
+
 
 def parse_suguru_binary(path):
     if not os.path.isfile(path):
@@ -291,6 +322,7 @@ def parse_suguru_binary(path):
     return arr
 
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', help='Path to Suguru file')
@@ -301,19 +333,23 @@ def main():
         print('[-] Invalid file')
         return
 
-    grid, solution, regions = parse_suguru_binary(
-        path
-    )
+    grid, solution, regions = parse_suguru_binary(path)
 
     start = time.perf_counter()
-    solver = SASolver(grid, regions)
-    solved = solver.solve()
+
+    psa = ParallelSA(grid, regions)
+    solved = psa.solve()
+    solved_grid = psa.grid
+
     end = time.perf_counter()
-    elapsed = end - start
-    print('Elapsed: ', elapsed)
+
     if solved:
-        print(solver.grid)
-        print('[+] Solved.')
+        print("Solution found:")
+        print(solved_grid)
+        print("Elapsed:", end - start)
+
+
+
 
 if __name__ == '__main__':
     main()

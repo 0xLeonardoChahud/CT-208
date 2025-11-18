@@ -125,30 +125,33 @@ class SASolver(SuguruSolvers.BaseSolver):
         r1 = self._get_random_invalid_region()
         r2 = self._get_random_region()
 
+        # 10% of chance of choosing a region that is already valid
         if np.random.rand() < 0.1:
             invalid_region = r2
         else:
             invalid_region = r1
+        
         all_positions = self.regions_map[invalid_region]
 
+        # We do not alter tips
         positions = [(i, j) for i, j in all_positions if (i, j) not in self.tips]
 
+        # Calculate change in cost more rapidly
         before_cost = self._calculate_bound_cost(all_positions)
         np.random.shuffle(positions)
-        if np.random.rand() < 2:
+
+        # 5% of chance to shuffle the whole region
+        if np.random.rand() < 0.05:
             original = self._shuffle_region(invalid_region)
             self.changes['shuffle'] = original
             self.changes['swap'] = None
         else:
+            # Swap two conflicting tiles
             tiles = self._swap_two_random_tiles(invalid_region)
             if tiles is not None:
                 t1, t2 = tiles
                 self.changes['swap'] = [(t1[0], t1[1]), (t2[0], t2[1])]
                 self.changes['shuffle'] = None
-            else:
-                original = self._shuffle_region(invalid_region)
-                self.changes['shuffle'] = original
-                self.changes['swap'] = None
         
         after_cost = self._calculate_bound_cost(all_positions)
         self.diff_cost = after_cost - before_cost
@@ -204,22 +207,32 @@ class SASolver(SuguruSolvers.BaseSolver):
 
     def _swap_two_random_tiles(self, region):
         tiles = self.regions_map[region]
+
+        # We do not alter tips
         tiles = [t for t in tiles if t not in self.tips]
         for t1, t2 in itertools.combinations(tiles, 2):
             i, j = t1
             m, n = t2
             v1 = self.grid[i, j]
             v2 = self.grid[m, n]
+
+            # Swap two conflicting tiles only
+            # If they dont have conflicts, skip.
+            if self._conflict_count(t1) == 0 and self._conflict_count(t2) == 0:
+                continue
+
+            # Swap tiles
             if v1 in self.candidates_mapping[m, n] and v2 in self.candidates_mapping[i, j]:
                 self._swap_tiles(t1, t2)
                 return t1, t2
 
     def _shuffle_region(self, region) -> dict:
-        # Get positions excluding tips
         positions = self.regions_map[region]
 
+        # Get values that are tips and thus cannot be modified.
         used = list([self.grid[i, j] for i, j in positions if (i, j) in self.tips])
 
+        # Get positions that DO NOT include tips
         positions = [(i, j) for i, j in positions if (i, j) not in self.tips]
         original = {(i, j):self.grid[i, j] for i, j in positions}
 
@@ -227,6 +240,7 @@ class SASolver(SuguruSolvers.BaseSolver):
             candidates = list(self.candidates_mapping[(i, j)])
             np.random.shuffle(candidates)
             for c in candidates:
+                # If it is not a value used by tips or already used for other cell, use it.
                 if c not in used:
                     used.append(c)
                     self.grid[i, j] = c

@@ -88,7 +88,6 @@ def main():
         else:
             s = SASolver.SASolver(grid, regions)
             solved = s.solve()
-            print(s.grid)
     elif solver == 'de':
         if show:
             s = Suguru(grid, regions, SuguruSolvers.DeterministicEngine, delay)
@@ -97,7 +96,6 @@ def main():
         else:
             s = SuguruSolvers.DeterministicEngine(grid, regions)
             solved = s.solve()
-            print(s.grid)
     elif solver == 'bt':
         if show:
             s = Suguru(grid, regions, SuguruSolvers.BacktrackSolver, delay)
@@ -106,9 +104,9 @@ def main():
         else:
             s = SuguruSolvers.BacktrackSolver(grid, regions)
             solved = s.solve()
-            print(s.grid)
     
     if solved:
+        print(s.grid)
         print('[+] Solved')
     else:
         print('[-] Not solved')
