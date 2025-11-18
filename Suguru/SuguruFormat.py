@@ -87,7 +87,7 @@ def parse_suguru_txt_file(file_path):
 
 def main():
     parser = argparse.ArgumentParser(description='Parse Suguru JSON file to binary')
-    parser.add_argument('--path', help='Suguru JSON file to parse')
+    parser.add_argument('--path', help='Suguru JSON or TXT file to parse')
     parser.add_argument('--output', help='Output directory for extracted puzzles')
     args = parser.parse_args()
 
