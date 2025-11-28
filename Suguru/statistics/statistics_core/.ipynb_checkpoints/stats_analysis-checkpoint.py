@@ -5,16 +5,13 @@ import seaborn as sns
 from scipy.stats import pointbiserialr, pearsonr
 from typing import Dict, List, Any
 
-def stats(solver_results: Dict[str, List[Any]], timeout_value: float = 60.0) -> pd.DataFrame:
+def stats(solver_results: Dict[str, List[Any]], timeout_value: float = 30.0) -> pd.DataFrame:
     """
-    Performs robust analysis on Suguru Simulated Annealing results, including
-    feature engineering and comprehensive correlation visualization.
-
     Args:
         solver_results (Dict[str, List[Any]]): A dictionary containing 
             the raw experiment data (e.g., 'solved', 'elapsed', 'size').
         timeout_value (float): The maximum allowed time (in seconds) for a run.
-            This value will replace np.inf for calculation purposes. Defaults to 60.0.
+            This value will replace np.inf for calculation purposes. Defaults to 30.0.
 
     Returns:
         pd.DataFrame: The processed DataFrame containing the results and new features.
@@ -60,7 +57,7 @@ def stats(solver_results: Dict[str, List[Any]], timeout_value: float = 60.0) -> 
     
     print("-" * 30)
 
-    # --- 3. Robust Correlation Analysis ---
+    # --- 3. Correlation Analysis ---
     
     print("--- Robust Correlation Analysis ---")
     
@@ -133,7 +130,7 @@ def stats(solver_results: Dict[str, List[Any]], timeout_value: float = 60.0) -> 
     pair_plot.fig.suptitle('Pair Plot of Key Features (Grouped by Success/Failure)', y=1.02)
     plt.show()
     
-    # --- 5. Other Visualizations (Originals) ---
+    # --- 5. Other Visualizations ---
     
     # A. Performance Scatter Plots (Timeouts Capped)
     fig, axes = plt.subplots(1, 3, figsize=(20, 5))
