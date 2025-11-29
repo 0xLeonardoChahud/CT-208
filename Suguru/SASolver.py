@@ -83,11 +83,7 @@ class SASolver(SuguruSolvers.BaseSolver):
         temperature = 1
         min_temperature = 0.1
         cooling_rate = 0.999
-
         iterations_per_t = math.ceil(np.sqrt(n))
-        count = 0
-        accepted = 0
-        p = 0.05
         resets = 0
         while cost > 0:
             for i in range(iterations_per_t):
@@ -98,18 +94,16 @@ class SASolver(SuguruSolvers.BaseSolver):
                     temperature *= 7
                     resets += 1
                     break
-                self._do_change(p)
+                self._do_change()
 
                 new_cost = cost + self.diff_cost
                 delta = new_cost - cost
 
                 if delta <= 0 or np.random.rand() < np.exp(-delta/temperature):
                     cost = new_cost
-                    accepted += 1
                 else:
                     self._undo_change()
 
-                count += 1
                 if cost <= 0:
                     break
 
@@ -119,13 +113,13 @@ class SASolver(SuguruSolvers.BaseSolver):
             temperature *= cooling_rate
 
 
-    def _do_change(self, prob_shuffle) -> None:
+    def _do_change(self) -> None:
         self.changes['shuffle'] = None
         self.changes['swap'] = None
         r1 = self._get_random_invalid_region()
         r2 = self._get_random_region()
 
-        # 10% of chance of choosing a region that is already valid
+        # 10% of chance of choosing a random region
         if np.random.rand() < 0.1:
             invalid_region = r2
         else:
